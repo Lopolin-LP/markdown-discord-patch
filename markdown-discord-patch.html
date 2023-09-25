@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Discord Patch</title>
+    <style>
+        :root {
+            --text: #fff;
+            --back: #000;
+            --grey: #7f7f7f;
+            --textarea-size: calc(100% - 2em);
+        }
+        html {
+            background-color: var(--back);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        form h2 {
+            border-top: solid var(--grey) 0.1em;
+            padding-top: 0.5em;
+            width: max-content;
+        }
+        .radio {
+            scale: 2;
+            margin: 0.6em 0.5em;
+        }
+        textarea {
+            background-color: var(--back);
+            color: var(--text);
+            border: solid var(--grey) 0.5em;
+            border-radius: 1em;
+            padding: 0.5em;
+            resize: vertical;
+        }
+        #textareainput {
+            width: var(--textarea-size);
+            height: 6em;
+        }
+        #theContainer {
+            display: grid;
+            grid-template-columns: 50% 50%;
+        }
+        #result textarea {
+            width: var(--textarea-size);
+            height: 30vh;
+            overflow-y: visible;
+        }
+        #mark-space-extra {
+            display: none;
+        }
+        #mark-space-extra[data-active] {
+            display: unset;
+        }
+        #version {
+            position: absolute;
+            inset: 2em;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-start;
+            z-index: -1;
+        }
+    </style>
+    <script>
+        window.onload = function() {
+            const lclsWarn = "option couldn't be loaded. They may not exist within localStorage."
+            try {
+                let whatmd = localStorage.getItem("mddcp-md");
+                document.querySelector('input[name="marktab"]').checked = false;
+                switch (whatmd) {
+                    case "none":
+                        document.getElementById("mark-none").checked = true;
+                        break;
+                    case "tab":
+                        document.getElementById("mark-tab").checked = true;
+                        break;
+                    case "space":
+                        document.getElementById("mark-space").checked = true;
+                        break;
+                
+                    default:
+                        break;
+                    }
+                markSpaceExtra();
+            } catch(err) {
+                console.warn("Markdown", lclsWarn);
+                console.err(err);
+            }
+            try {
+                let whatnr = localStorage.getItem("mddcp-nr");
+                document.getElementById("mark-amount").value = Number(whatnr);
+            } catch(err) {
+                console.warn("Space Number", lclsWarn);
+                console.err(err);
+            }
+            try {
+                let whatmsg = localStorage.getItem("mddcp-2k");
+                document.getElementById("splitmsg").checked = JSON.parse(whatmsg);
+            } catch(err) {
+                console.warn("Split Message", lclsWarn);
+                console.error(err);
+            }
+        }
+        let placeholderStillThere = true;
+        function execute(elm) {
+            const splitmsg = document.querySelector("#splitmsg").checked;
+            const marktab = document.querySelector('input[name="marktab"]:checked').value;
+            let amount = undefined;
+            const text = document.querySelector("textarea").value;
+            if (marktab === "space") {
+                amount = Number(document.querySelector('#mark-amount').value);
+            }
+            /* Debugging */ console.log(splitmsg, marktab, amount, text);
+            let regex = undefined;
+            let spacesString = undefined;
+            let replacestring = "  "; // The amount of spaces to replace it with
+            let replacedtext = undefined;
+            switch (marktab) {
+                case "tab":
+                    regex = new RegExp(`^(\t)*`, "gm");
+                    spacesString = "\t";
+                    break;
+                case "space":
+                    regex = new RegExp(`^(${" ".repeat(amount)})*`, "gm");
+                    spacesString = " ".repeat(amount);
+                    break;
+            
+                default:
+                    break;
+            }
+            if (marktab !== "none") {
+                replacedtext = text.replace(regex, function(match) {
+                    return match.split(spacesString).join(replacestring);
+                });
+            } else {
+                replacedtext = text; // some only want to split messages, how depressing...
+            }
+            let messages = [replacedtext];
+            if (splitmsg == true) {
+                messages = splitMessage2(replacedtext);
+            }
+            if (document.getElementById("textareainput").value !== "") {
+                let oldAreas = document.querySelectorAll("#result textarea");
+                oldAreas.forEach(element => {
+                    element.remove();
+                });
+            }
+            for (let i = 0; i < messages.length; i++) {
+                const element = messages[i];
+                createResult(element, splitmsg);
+            }
+            console.log('"'+regex+'"', '"'+replacestring+'"')
+        }
+        function splitMessage(text) { /* legacy splitMessage */
+            let textarrs = [];
+            let currentText = text;
+            for (let i = 0; i < Math.ceil(text.length/2000); i++) {
+                textarrs.push(currentText.substring(0, 2000))
+                currentText = currentText.substring(2000);
+            }
+            return textarrs;
+        };
+        function splitMessage2(text) { // A more optimized approach
+            // return: [array, with, all, splits]
+            // returned by for loop: ["output", "prepend to currentText"]
+            let textarrs = [];
+            let currentText = text;
+            let char_limit = 2000;
+            let previousCurrentText = "";
+            let keepEmptyLineString = "_ _";
+            while (currentText !== "") {
+                previousCurrentText = currentText;
+                // apply 2k limit
+                // split into char_limit_text and currentText
+                let char_limit_text = currentText.substring(0, char_limit);
+                currentText = currentText.substring(char_limit);
+                // search for optimal position to cut instead of 2k.
+                // lastOptimalSlice: The position of the most optimal to use substring against. NOTE: USE SUBSTRING, AS IT MAY RETURN -1.
+                // usedSlice: string that contains the slice used.
+                // noSlice: no slice is able to be used
+                lastOptimalSlice = char_limit_text.lastIndexOf("\n");
+                let usedSlice = "\n";
+                let noSlice = false;
+                if (lastOptimalSlice === -1) {
+                    lastOptimalSlice = char_limit_text.lastIndexOf(" ");
+                    usedSlice = " ";
+                    if (lastOptimalSlice === -1) {
+                        noSlice = true;
+                    }
+                }
+                if (noSlice === true) {
+                    textarrs.push(char_limit_text);
+                } else if (currentText !== "") {
+                    // slice the text
+                    // substring: the first most optimized half
+                    // leftover: the left over beteween substring and currentText
+                    let substring = char_limit_text.substring(0, lastOptimalSlice);
+                    let leftover = char_limit_text.substring(lastOptimalSlice + usedSlice.length);
+                    // add keepEmptyLineString
+                    if (lastOptimalSlice < char_limit - keepEmptyLineString.length) {
+                        if (substring.lastIndexOf(usedSlice) + usedSlice.length === substring.length) {
+                            substring += keepEmptyLineString;
+                        }
+                    } else if (char_limit - keepEmptyLineString.length < lastOptimalSlice < char_limit) {
+                        let counter = 1; // cannot be 0 due to .repeat()
+                        while (leftover.endsWith("\n".repeat(counter))) {
+                            counter++;
+                        }
+                        counter -= 1;
+                        if (counter !== 0) {
+                            // If new lines were found, just add them to the leftover
+                            leftover = keepEmptyLineString + "\n".repeat(counter);
+                        } else {
+                            console.log("The Optimizations have been outplayed, well done! Because it should be physically impossible to see this line.");
+                        }
+                        // If no new lines were found, the formatting is simply fked!
+                    }
+                    // re-add leftover to currentText and add substring to textarrs
+                    currentText = leftover + currentText;
+                    textarrs.push(substring);
+                } else if (currentText === "") {
+                    // add keepEmptyLineString
+                    if (char_limit_text.lastIndexOf(usedSlice) + usedSlice.length === lastOptimalSlice) {
+                        char_limit_text += keepEmptyLineString;
+                    }
+                    // simply push it.
+                    textarrs.push(char_limit_text);
+                }
+                // check if it was the same text again, if it wasn't you aren't fucked
+                if (previousCurrentText === currentText) {
+                    let aWarning = document.createElement("h3");
+                    aWarning.innerText = `The Last Entry in the result may be over ${char_limit} characters long, as the last sliced and optimized text was the exact same as before. If we would've continued, your browser might've crashed!`;
+                    aWarning.style.color = "#f00";
+                    document.querySelector("#result h2").appendChild(aWarning);
+                    break;
+                }
+                // debugging tools
+                // console.log("THIS IS THE SUBSTRING\n\n"+ substring)
+                // console.log("THIS IS THE LEFTOVER\n\n"+ leftover);
+                // console.log("THIS IS EVERYTHING ELSE", lastOptimalSlice, usedSlice);
+                // if (usedSlice===" ") {
+                //     console.log("space slice used")
+                // }
+            }
+            return textarrs;
+        };
+        function createResult(text, resize) {
+            let area51 = document.createElement("textarea");
+            area51.disabled = true;
+            area51.value = text;
+            document.getElementById("result").appendChild(area51);
+            if (resize === false) {
+                let newestChild = document.querySelector("#result *:last-child");
+                newestChild.style.height = (newestChild.scrollHeight) + "px";
+                newestChild.style.resize = "none";
+            }
+        }
+        function markSpaceExtra() {
+            let state = document.querySelector('input[name="marktab"]:checked').value;
+            let msediv = document.getElementById("mark-space-extra");
+            if (state == "space") {
+                msediv.setAttribute("data-active", "");
+            } else {
+                try {
+                    msediv.removeAttribute("data-active");
+                } catch {}
+            }
+            console.log("mark-space-extra: State Changed to", state)
+        }
+        window.onbeforeunload = function() {
+            localStorage.setItem("mddcp-md", document.querySelector('input[name="marktab"]:checked').value);
+            localStorage.setItem("mddcp-nr", document.getElementById("mark-amount").value);
+            localStorage.setItem("mddcp-2k", document.getElementById("splitmsg").checked);
+        }
+    </script>
+</head>
+<body>
+    <h1>Discord Markdown Patch / Split Messages</h1>
+    <small id="version">v0.1</small>
+    <p>A very lightweight tool to fix discords markdown shitty Indention detection</p>
+    <ul style="color:red">
+        <p>Things Left to be added until v1.0:</p>
+        <li>Make an Option to use "_ _" at end of strings or not</li>
+        <li>Make an Option to change char limit and "_ _"</li>
+        <li>Allow Toggle between splitMessage() and splitMessage2()</li>
+    </ul>
+    <div id="theContainer">
+        <form action="javascript:;" onsubmit="execute(this)">
+            <!-- Markdown -->
+            <div onclick="markSpaceExtra();"> <!-- why there no onchange for div? :( -->
+                <h2>Markdown Indention Patch</h2>
+                <input type="radio" class="radio" id="mark-none" name="marktab" value="none">
+                <label for="mark-none">None</label>
+                <br>
+                <input type="radio" class="radio" id="mark-tab" name="marktab" value="tab" checked="checked">
+                <label for="mark-tab">Fix Markdown (TAB)</label>
+                <br>
+                <input type="radio" class="radio" id="mark-space" name="marktab" value="space">
+                <label for="mark-space">Fix Markdown (Space) <i>(Extra Options)</i></label>
+            </div>
+            <!-- Extra Options -->
+            <h2>Extra Options</h2>
+            <label for="splitmsg">Split Messages</label>
+            <input type="checkbox" class="radio" name="splitmsg" id="splitmsg">
+            <small>[Experimental, may not do it's job in very specific edge-cases]</small>
+            <div id="mark-space-extra">
+                <br>
+                <label for="mark-amount">Amount of Spaces per indent (Number)</label>
+                <script>
+                    function preventEnter(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                        }
+                    }
+                </script>
+                <input type="number" name="mark-amount" id="mark-amount" min="1" value="4" required>
+            </div>
+            <!-- Text Input -->
+            <br>
+            <h2>Text Input</h2>
+            <textarea id="textareainput"></textarea>
+            <!-- Submit -->
+            <br>
+            <h2>Submit & Result</h2>
+            <input type="submit" value="Submit" id="submit-input">
+        </form>
+        <div id="result">
+            <h2>Result</h2>
+            <textarea disabled style="text-align: center;color: #fff; background-color: #200;">There is not Result yet!</textarea>
+        </div>
+    </div>
+    <script>
+        allInputs = document.querySelectorAll("input");
+        for (let i = 0; i < allInputs.length; i++) {
+            const element = allInputs[i];
+            element.addEventListener("keypress", ()=>{preventEnter(event)});
+        }
+        enterEventSpecial = {
+            splitmsg: document.getElementById("splitmsg"),
+            submit: document.getElementById("submit-input")
+        }
+        enterEventSpecial.splitmsg.removeEventListener("keypress", ()=>{preventEnter(event)});
+        enterEventSpecial.splitmsg.addEventListener("keypress", function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                this.checked = !this.checked
+            }
+        });
+        enterEventSpecial.submit.removeEventListener("keypress", ()=>{preventEnter(event)});
+        enterEventSpecial.submit.addEventListener("keypress", function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                enterEventSpecial.submit.click();
+            }
+        });
+    </script>
+</body>
+</html>
