@@ -8,7 +8,7 @@ Let me demonstrate...
 
 ## How to use
 - Download HTML File or
-- click on this link [insert link]
+- click on [this link](https://lopolin-lp.github.io/markdown-discord-patch/markdown-discord-patch.html)
 
 ## License
 GPLv3
