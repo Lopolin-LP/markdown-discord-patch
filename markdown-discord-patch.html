@@ -21,9 +21,29 @@
             padding-top: 0.5em;
             width: max-content;
         }
+        .radio input[type="radio"], .radio input[type="checkbox"] {
+            /* scale: 2; */
+            width: 2em;
+            height: 2em;
+            transform-origin: left;
+            margin: 0 0.5em;
+        }
+        .radio input[type="radio"]:first-child, .radio input[type="checkbox"]:first-child {
+            margin: 0;
+            margin-right: 0.5em;
+        }
+        .radio input[type="radio"]:last-child, .radio input[type="checkbox"]:last-child {
+            margin: 0;
+            margin-left: 0.5em;
+        }
         .radio {
-            scale: 2;
-            margin: 0.6em 0.5em;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            margin-bottom: 0.5em;
+        }
+        .radio:last-child {
+            margin-bottom: 0;
         }
         textarea {
             background-color: var(--back);
@@ -50,15 +70,22 @@
             display: none;
         }
         #mark-space-extra[data-active] {
-            display: unset;
+            display: inherit;
         }
         #version {
-            position: absolute;
-            inset: 2em;
-            display: flex;
-            justify-content: flex-end;
-            align-items: flex-start;
-            z-index: -1;
+            position: fixed;
+            top: 2em;
+            right: 2em;
+            font-size: small;
+        }
+        .alpha {
+            color: #a00;
+        }
+        .beta {
+            color: #aa0;
+        }
+        .experimental {
+            color: #07f;
         }
     </style>
     <script>
@@ -162,12 +189,15 @@
         };
         function splitMessage2(text) { // A more optimized approach
             // return: [array, with, all, splits]
-            // returned by for loop: ["output", "prepend to currentText"]
+            // returned by while(){} loop: ["output", "prepend to currentText"]
             let textarrs = [];
             let currentText = text;
             let char_limit = 2000;
             let previousCurrentText = "";
             let keepEmptyLineString = "_ _";
+            function nLineFix(substring, leftover) { /* only execute within while loop and after optimal slice was finished. */
+                return [substring, leftover];
+            }
             while (currentText !== "") {
                 previousCurrentText = currentText;
                 // apply 2k limit
@@ -188,6 +218,7 @@
                         noSlice = true;
                     }
                 }
+                /* DEBUGGING */ console.log("SLICING METHOD:", JSON.stringify(usedSlice), "NoSlice:", noSlice);
                 if (noSlice === true) {
                     textarrs.push(char_limit_text);
                 } else if (currentText !== "") {
@@ -197,34 +228,37 @@
                     let substring = char_limit_text.substring(0, lastOptimalSlice);
                     let leftover = char_limit_text.substring(lastOptimalSlice + usedSlice.length);
                     // add keepEmptyLineString
-                    if (lastOptimalSlice < char_limit - keepEmptyLineString.length) {
-                        if (substring.lastIndexOf(usedSlice) + usedSlice.length === substring.length) {
+                    console.log("Optimized Strings:", JSON.stringify(substring), JSON.stringify(leftover))
+                    if (substring.endsWith("\n") /* && THAT OPTION IS ENABLED!*/) {
+                        /* DEBUGGING */ console.log("It ended with \\n!")
+                        if (lastOptimalSlice < char_limit - keepEmptyLineString.length) {
+                            /* if under limit */
                             substring += keepEmptyLineString;
-                        }
-                    } else if (char_limit - keepEmptyLineString.length < lastOptimalSlice < char_limit) {
-                        let counter = 1; // cannot be 0 due to .repeat()
-                        while (leftover.endsWith("\n".repeat(counter))) {
-                            counter++;
-                        }
-                        counter -= 1;
-                        if (counter !== 0) {
-                            // If new lines were found, just add them to the leftover
-                            leftover = keepEmptyLineString + "\n".repeat(counter);
+                            /* DEBUGGING */ console.log("It's under the limit. keepEmptyLineString simply appended.")
+                        } else if (lastOptimalSlice > char_limit - keepEmptyLineString.length) {
+                            /* if inbetween limit and unaddable without going over the limit */
+                            let counter = 0;
+                            while (substring.endsWith("\n")) {
+                                substring = substring.slice(0, -1);
+                                counter++;
+                            }
+                            leftover = keepEmptyLineString + "\n".repeat(counter) + leftover;
+                            /* DEBUGGING */ console.log("The Inbetween length was detected, keepEmptyLineString counter:", counter);
                         } else {
-                            console.log("The Optimizations have been outplayed, well done! Because it should be physically impossible to see this line.");
-                        }
-                        // If no new lines were found, the formatting is simply fked!
-                    }
+                            /* DEBUGGING */ console.log("...but nothing got executed.");
+                        };
+                    };
                     // re-add leftover to currentText and add substring to textarrs
                     currentText = leftover + currentText;
                     textarrs.push(substring);
                 } else if (currentText === "") {
                     // add keepEmptyLineString
-                    if (char_limit_text.lastIndexOf(usedSlice) + usedSlice.length === lastOptimalSlice) {
+                    if (char_limit_text.endsWith("\n")) {
                         char_limit_text += keepEmptyLineString;
                     }
                     // simply push it.
                     textarrs.push(char_limit_text);
+                    console.log("Last currentText finished!");
                 }
                 // check if it was the same text again, if it wasn't you aren't fucked
                 if (previousCurrentText === currentText) {
@@ -242,6 +276,7 @@
                 //     console.log("space slice used")
                 // }
             }
+            /* DEBUGGING */ console.log("FINAL ARGS", textarrs, JSON.stringify(currentText), char_limit, JSON.stringify(previousCurrentText), JSON.stringify(keepEmptyLineString));
             return textarrs;
         };
         function createResult(text, resize) {
@@ -267,6 +302,11 @@
             }
             console.log("mark-space-extra: State Changed to", state)
         }
+        function preventEnter(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+            }
+        }
         window.onbeforeunload = function() {
             localStorage.setItem("mddcp-md", document.querySelector('input[name="marktab"]:checked').value);
             localStorage.setItem("mddcp-nr", document.getElementById("mark-amount").value);
@@ -276,44 +316,50 @@
 </head>
 <body>
     <h1>Discord Markdown Patch / Split Messages</h1>
-    <small id="version">v0.1</small>
+    <div id="version">v0.2</div>
     <p>A very lightweight tool to fix discords markdown shitty Indention detection</p>
     <ul style="color:red">
         <p>Things Left to be added until v1.0:</p>
         <li>Make an Option to use "_ _" at end of strings or not</li>
         <li>Make an Option to change char limit and "_ _"</li>
         <li>Allow Toggle between splitMessage() and splitMessage2()</li>
+        <li>Bully people if the input text is the same as output (like a randomized bully message and make it the placeholder textarea)</li>
+        <li>Allow custom character limit</li>
     </ul>
+    <noscript style="color: red;">
+        <h1><h1>You need JavaScript enabled for this website to work!</h1><br>Click <a href="https://www.enable-javascript.com/" target="_blank">HERE</a> to learn more.</h1>
+    </noscript>
     <div id="theContainer">
         <form action="javascript:;" onsubmit="execute(this)">
             <!-- Markdown -->
             <div onclick="markSpaceExtra();"> <!-- why there no onchange for div? :( -->
                 <h2>Markdown Indention Patch</h2>
-                <input type="radio" class="radio" id="mark-none" name="marktab" value="none">
-                <label for="mark-none">None</label>
-                <br>
-                <input type="radio" class="radio" id="mark-tab" name="marktab" value="tab" checked="checked">
-                <label for="mark-tab">Fix Markdown (TAB)</label>
-                <br>
-                <input type="radio" class="radio" id="mark-space" name="marktab" value="space">
-                <label for="mark-space">Fix Markdown (Space) <i>(Extra Options)</i></label>
+                <div class="radio">
+                    <input type="radio" id="mark-none" name="marktab" value="none">
+                    <label for="mark-none">None</label>
+                </div>
+                <div class="radio">
+                    <input type="radio" id="mark-tab" name="marktab" value="tab" checked="checked">
+                    <label for="mark-tab">Fix Markdown (TAB)</label>
+                </div>
+                <div class="radio">
+                    <input type="radio" id="mark-space" name="marktab" value="space">
+                    <label for="mark-space">Fix Markdown (Space) <i>(Extra Options)</i></label>
+                </div>
             </div>
             <!-- Extra Options -->
             <h2>Extra Options</h2>
-            <label for="splitmsg">Split Messages</label>
-            <input type="checkbox" class="radio" name="splitmsg" id="splitmsg">
-            <small>[Experimental, may not do it's job in very specific edge-cases]</small>
-            <div id="mark-space-extra">
-                <br>
+            <div id="mark-space-extra" class="radio">
                 <label for="mark-amount">Amount of Spaces per indent (Number)</label>
-                <script>
-                    function preventEnter(event) {
-                        if (event.key === 'Enter') {
-                            event.preventDefault();
-                        }
-                    }
-                </script>
                 <input type="number" name="mark-amount" id="mark-amount" min="1" value="4" required>
+            </div>
+            <div class="radio">
+                <input type="checkbox" name="splitmsg" id="splitmsg">
+                <label for="splitmsg">Split Messages<sup>1</sup></label>
+            </div>
+            <div class="radio">
+                <input type="checkbox" name="lastlines" id="splitmsg">
+                <label for="lastlines">Make empty lines at end of message appear in Discord<sup>2</sup></label>
             </div>
             <!-- Text Input -->
             <br>
@@ -321,14 +367,21 @@
             <textarea id="textareainput"></textarea>
             <!-- Submit -->
             <br>
-            <h2>Submit & Result</h2>
-            <input type="submit" value="Submit" id="submit-input">
+            <h2>Submit and Other</h2>
+            <input type="submit" value="Submit" id="submit-input" style="font-size: 2em;">
+            <br><br>
+            <input type="button" onclick="" value="Reset Options to Default, this reloads the webpage" id="reset-input">
         </form>
         <div id="result">
             <h2>Result</h2>
             <textarea disabled style="text-align: center;color: #fff; background-color: #200;">There is not Result yet!</textarea>
         </div>
     </div>
+    <br><br>
+    <small>
+        <sup>1</sup><span class="experimental">Experimental</span>, may not do it's job in very very specific edge-cases or if you really try to break it.<br>
+        <sup>2</sup>If an empty line is found at the very end of a message, it will instead append "_ _"
+    </small>
     <script>
         allInputs = document.querySelectorAll("input");
         for (let i = 0; i < allInputs.length; i++) {
