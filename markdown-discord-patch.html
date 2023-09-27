@@ -9,6 +9,7 @@
             --text: #fff;
             --back: #000;
             --grey: #7f7f7f;
+            --back-red: #200;
             --textarea-size: calc(100% - 2em);
         }
         html {
@@ -21,18 +22,35 @@
             padding-top: 0.5em;
             width: max-content;
         }
+        small ul {
+            margin: 0;
+        }
+        a {
+            color: var(--text);
+        }
+        a:hover {
+            color: var(--text);
+        }
+        a:active {
+            color: var(--text);
+        }
+        a:visited {
+            color: var(--text);
+        }
+        /* .radio input[type="radio"], .radio input[type="checkbox"], .radio select, .radio input[type="number"] { */
+        .radio input, .radio select {
+            margin: 0 0.5em;
+        } 
         .radio input[type="radio"], .radio input[type="checkbox"] {
-            /* scale: 2; */
             width: 2em;
             height: 2em;
             transform-origin: left;
-            margin: 0 0.5em;
         }
-        .radio input[type="radio"]:first-child, .radio input[type="checkbox"]:first-child {
+        .radio input:first-child, select:first-child {
             margin: 0;
             margin-right: 0.5em;
         }
-        .radio input[type="radio"]:last-child, .radio input[type="checkbox"]:last-child {
+        .radio input:last-child, select:last-child {
             margin: 0;
             margin-left: 0.5em;
         }
@@ -42,7 +60,7 @@
             align-items: center;
             margin-bottom: 0.5em;
         }
-        .radio:last-child {
+        .radio:last-child:not(.radio-nl) { /* nl: not last/new lines */
             margin-bottom: 0;
         }
         textarea {
@@ -66,10 +84,10 @@
             height: 30vh;
             overflow-y: visible;
         }
-        #mark-space-extra {
+        .defaultHidden {
             display: none;
         }
-        #mark-space-extra[data-active] {
+        .defaultHidden[data-active] {
             display: inherit;
         }
         #version {
@@ -115,6 +133,9 @@
             }
             try {
                 let whatnr = localStorage.getItem("mddcp-nr");
+                if (whatnr == '') {
+                    whatnr = 4; /* set the default */
+                }
                 document.getElementById("mark-amount").value = Number(whatnr);
             } catch(err) {
                 console.warn("Space Number", lclsWarn);
@@ -122,20 +143,51 @@
             }
             try {
                 let whatmsg = localStorage.getItem("mddcp-2k");
-                document.getElementById("splitmsg").checked = JSON.parse(whatmsg);
+                if (whatmsg === "") {
+                    whatmsg = "disabled";
+                }
+                document.getElementById("splitmsg").value = whatmsg;
+                splitMessagesExtra();
             } catch(err) {
                 console.warn("Split Message", lclsWarn);
+                console.error(err);
+            }
+            try {
+                let whatlnb = localStorage.getItem("mddcp-ll");
+                document.getElementById("splitmsg-ll").checked = JSON.parse(whatlnb);
+                lastLinesExtra();
+            } catch(err) {
+                console.warn("Last Lines Checkbox", lclsWarn);
+                console.error(err);
+            }
+            try {
+                let whatlnbs = localStorage.getItem("mddcp-llstr");
+                document.getElementById("splitmsg-llstr").value = whatlnbs;
+            } catch(err) {
+                console.warn("Last Lines String", lclsWarn);
+                console.error(err);
+            }
+            try {
+                let whatlnbs = localStorage.getItem("mddcp-cl");
+                document.getElementById("charlimit").value = whatlnbs;
+            } catch(err) {
+                console.warn("Character Limit", lclsWarn);
                 console.error(err);
             }
         }
         let placeholderStillThere = true;
         function execute(elm) {
-            const splitmsg = document.querySelector("#splitmsg").checked;
+            const splitmsg = document.querySelector("#splitmsg").value;
             const marktab = document.querySelector('input[name="marktab"]:checked').value;
             let amount = undefined;
             const text = document.querySelector("textarea").value;
             if (marktab === "space") {
-                amount = Number(document.querySelector('#mark-amount').value);
+                let amount_elm = document.querySelector('#mark-amount').value;
+                if (amount_elm === "") {
+                    amount = 4; /* Set default if no value given */
+                    return;
+                }
+                amount = Number(amount_elm);
             }
             /* Debugging */ console.log(splitmsg, marktab, amount, text);
             let regex = undefined;
@@ -163,27 +215,53 @@
                 replacedtext = text; // some only want to split messages, how depressing...
             }
             let messages = [replacedtext];
-            if (splitmsg == true) {
+            if (splitmsg == "smart") {
                 messages = splitMessage2(replacedtext);
+            } else if (splitmsg == "simple") {
+                messages = splitMessage(replacedtext);
             }
             if (document.getElementById("textareainput").value !== "") {
                 let oldAreas = document.querySelectorAll("#result textarea");
                 oldAreas.forEach(element => {
                     element.remove();
                 });
+                for (let i = 0; i < messages.length; i++) {
+                    const element = messages[i];
+                    createResult(element, splitmsg);
+                }
             }
-            for (let i = 0; i < messages.length; i++) {
-                const element = messages[i];
-                createResult(element, splitmsg);
+            if (document.getElementById("textareainput").value === messages[0] && document.getElementById("textareainput").value !== "") {
+                let oldAreas = document.querySelectorAll("#result textarea");
+                oldAreas.forEach(element => {
+                    element.remove();
+                });
+                let mockingTheUser = [
+                    "this ain't a repeater",
+                    "bro made something comparible to translating english to english",
+                    "reall?",
+                    "if (output === input) {mockUser();}",
+                    "why",
+                    "*mocks you*",
+                    "*sames you*"
+                    /* "To GeT tHe ReSuLt, ClIcK tHiS lInK!!!11!: <a href='https://www.youtube.com/watch?v=dQw4w9WgXcQ' target='blank'>hot uwu girl</a>"*/
+                ];
+                let div = document.createElement("div");
+                div.innerHTML = `<textarea data-no-result disabled style="text-align: center;color: var(--text); background-color: var(--back-red);">${mockingTheUser[Math.floor(Math.random() * mockingTheUser.length)] + " &#128128;"}</textarea>`;
+                document.getElementById("result").appendChild(div.querySelector("textarea"));
             }
-            console.log('"'+regex+'"', '"'+replacestring+'"')
+            console.log('"'+regex+'"', '"'+replacestring+'"');
         }
-        function splitMessage(text) { /* legacy splitMessage */
+        function splitMessage(text) { /* legacy splitMessage + newly added customizable char_limit */
             let textarrs = [];
             let currentText = text;
-            for (let i = 0; i < Math.ceil(text.length/2000); i++) {
-                textarrs.push(currentText.substring(0, 2000))
-                currentText = currentText.substring(2000);
+            let char_limit = 2000;
+            if (document.getElementById("charlimit").value !== "") {
+                /* set custom character limit */
+                char_limit = document.getElementById("charlimit").value;
+            }
+            for (let i = 0; i < Math.ceil(text.length/char_limit); i++) {
+                textarrs.push(currentText.substring(0, char_limit))
+                currentText = currentText.substring(char_limit);
             }
             return textarrs;
         };
@@ -193,8 +271,17 @@
             let textarrs = [];
             let currentText = text;
             let char_limit = 2000;
+            if (document.getElementById("charlimit").value !== "") {
+                /* set custom character limit */
+                char_limit = document.getElementById("charlimit").value;
+            }
             let previousCurrentText = "";
             let keepEmptyLineString = "_ _";
+            if (document.getElementById("splitmsg-llstr").value !== "") {
+                /* custom force empty lines */
+                keepEmptyLineString = document.getElementById("splitmsg-llstr").value;
+            }
+            const shouldKeepEmptyLine = document.getElementById("splitmsg-ll").checked;
             function nLineFix(substring, leftover) { /* only execute within while loop and after optimal slice was finished. */
                 return [substring, leftover];
             }
@@ -229,7 +316,7 @@
                     let leftover = char_limit_text.substring(lastOptimalSlice + usedSlice.length);
                     // add keepEmptyLineString
                     console.log("Optimized Strings:", JSON.stringify(substring), JSON.stringify(leftover))
-                    if (substring.endsWith("\n") /* && THAT OPTION IS ENABLED!*/) {
+                    if (substring.endsWith("\n") && shouldKeepEmptyLine === true) {
                         /* DEBUGGING */ console.log("It ended with \\n!")
                         if (lastOptimalSlice < char_limit - keepEmptyLineString.length) {
                             /* if under limit */
@@ -253,7 +340,7 @@
                     textarrs.push(substring);
                 } else if (currentText === "") {
                     // add keepEmptyLineString
-                    if (char_limit_text.endsWith("\n")) {
+                    if (char_limit_text.endsWith("\n") && shouldKeepEmptyLine === true) {
                         char_limit_text += keepEmptyLineString;
                     }
                     // simply push it.
@@ -290,41 +377,122 @@
                 newestChild.style.resize = "none";
             }
         }
+        /* enable specific settings if certain things happen... */
         function markSpaceExtra() {
             let state = document.querySelector('input[name="marktab"]:checked').value;
-            let msediv = document.getElementById("mark-space-extra");
+            let div = document.getElementById("mark-space-extra");
             if (state == "space") {
-                msediv.setAttribute("data-active", "");
+                div.setAttribute("data-active", "");
+                document.getElementById("mark-amount").setAttribute("required", ""); /* enforce them to say something, but also do not force them if it's not chosen */
             } else {
                 try {
-                    msediv.removeAttribute("data-active");
+                    div.removeAttribute("data-active");
+                } catch {}
+                try {
+                    document.getElementById("mark-amount").removeAttribute("required");
                 } catch {}
             }
-            console.log("mark-space-extra: State Changed to", state)
+            console.log("mark-space-extra: State Changed to", state);
+        }
+        function splitMessagesExtra() {
+            let state = document.getElementById("splitmsg").value;
+            let div = document.getElementById("splitsmsg-extra");
+            let div2 = document.getElementById("charlimit-parent");
+            if (state == "smart") {
+                div.setAttribute("data-active", "");
+            } else {
+                try {
+                    div.removeAttribute("data-active");
+                } catch {}
+            }
+            if (state == "disabled") {
+                try {
+                    div2.removeAttribute("data-active");
+                } catch {}
+            } else {
+                div2.setAttribute("data-active", "");
+            }
+            console.log("split-messages-extra: State Changed to", state);
+        }
+        function lastLinesExtra() {
+            let state = document.getElementById("splitmsg-ll").checked;
+            let div = document.getElementById("splitmsg-llstr-parent");
+            if (state === true) {
+                div.setAttribute("data-active", "");
+            } else {
+                try {
+                    div.removeAttribute("data-active");
+                } catch {}
+            }
+            console.log("splitmsg-llstr-extra: State Changed to", state);
         }
         function preventEnter(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
             }
         }
+        function fixNumUser(elm) {
+            if (elm.value == "") {
+                return;
+            }
+            if (elm.value != "" && elm.value < 1) {
+                elm.value = 1;
+            }
+            elm.value = Math.floor(elm.value);
+        }
+        function resetSettings() {
+            try {
+                localStorage.removeItem("mddcp-md");
+            } catch {}
+            try {
+                localStorage.removeItem("mddcp-nr");
+            } catch {}
+            try {
+                localStorage.removeItem("mddcp-2k");
+            } catch {}
+            try {
+                localStorage.removeItem("mddcp-ll");
+            } catch {}
+            try {
+                localStorage.removeItem("mddcp-llstr");
+            } catch {}
+            try {
+                localStorage.removeItem("mddcp-cl");
+            } catch {}
+            localStorage.setItem("mddcp-rt", "");
+            window.location.reload();
+        }
         window.onbeforeunload = function() {
-            localStorage.setItem("mddcp-md", document.querySelector('input[name="marktab"]:checked').value);
-            localStorage.setItem("mddcp-nr", document.getElementById("mark-amount").value);
-            localStorage.setItem("mddcp-2k", document.getElementById("splitmsg").checked);
+            if (typeof localStorage.getItem("mddcp-rt") === "string") {
+                /* Reset Settings */
+                console.log("Prevent saving of Settings due to reset!");
+            } else {
+                /* Save Settings */
+                localStorage.setItem("mddcp-md", document.querySelector('input[name="marktab"]:checked').value);
+                localStorage.setItem("mddcp-nr", document.getElementById("mark-amount").value);
+                localStorage.setItem("mddcp-2k", document.getElementById("splitmsg").value);
+                localStorage.setItem("mddcp-ll", document.getElementById("splitmsg-ll").checked);
+                localStorage.setItem("mddcp-llstr", document.getElementById("splitmsg-llstr").value);
+                localStorage.setItem("mddcp-cl", document.getElementById("charlimit").value);
+            }
+            try {
+                /* Remove resetting again */
+                localStorage.removeItem("mddcp-rt");
+            } catch {}
         }
     </script>
 </head>
 <body>
     <h1>Discord Markdown Patch / Split Messages</h1>
-    <div id="version">v0.2</div>
-    <p>A very lightweight tool to fix discords markdown shitty Indention detection</p>
+    <div id="version">v0.3</div>
+    <p>
+        A very lightweight tool to fix discords markdown shitty Indention detection. Available for free on
+        <a href="https://github.com/Lopolin-LP/markdown-discord-patch" target="_blank">GitHub</a>.
+        <a href="https://raw.githubusercontent.com/Lopolin-LP/markdown-discord-patch/main/LICENSE" target="_blank">Licensed under GPLv3.</a>
+    </p>
     <ul style="color:red">
         <p>Things Left to be added until v1.0:</p>
-        <li>Make an Option to use "_ _" at end of strings or not</li>
-        <li>Make an Option to change char limit and "_ _"</li>
-        <li>Allow Toggle between splitMessage() and splitMessage2()</li>
-        <li>Bully people if the input text is the same as output (like a randomized bully message and make it the placeholder textarea)</li>
-        <li>Allow custom character limit</li>
+        <li>Finalise mocking</li>
     </ul>
     <noscript style="color: red;">
         <h1><h1>You need JavaScript enabled for this website to work!</h1><br>Click <a href="https://www.enable-javascript.com/" target="_blank">HERE</a> to learn more.</h1>
@@ -349,17 +517,42 @@
             </div>
             <!-- Extra Options -->
             <h2>Extra Options</h2>
-            <div id="mark-space-extra" class="radio">
+            <div id="mark-space-extra" class="radio defaultHidden">
                 <label for="mark-amount">Amount of Spaces per indent (Number)</label>
-                <input type="number" name="mark-amount" id="mark-amount" min="1" value="4" required>
+                <input type="number" name="mark-amount" id="mark-amount" min="1" value="4" placeholder="4" onkeyup="fixNumUser(this);">
             </div>
+            <!-- Split Messages -->
             <div class="radio">
-                <input type="checkbox" name="splitmsg" id="splitmsg">
+                <select id="splitmsg" onclick="splitMessagesExtra();">
+                    <option value="disabled">Disabled</option>
+                    <option value="simple">Simple</option>
+                    <option value="smart">Smart (Recommended)</option>
+                </select>
                 <label for="splitmsg">Split Messages<sup>1</sup></label>
             </div>
-            <div class="radio">
-                <input type="checkbox" name="lastlines" id="splitmsg">
-                <label for="lastlines">Make empty lines at end of message appear in Discord<sup>2</sup></label>
+            <div id="splitsmsg-extra" class="defaultHidden">
+                <!-- Last Lines -->
+                <div class="radio" onclick="lastLinesExtra();">
+                    <input type="checkbox" class="radio-nl" name="splitmsg-ll" id="splitmsg-ll">
+                    <label for="splitmsg-ll">Force Line Breaks at end of message to appear in Discord<sup>2</sup></label>
+                </div>
+                <!-- Last Lines: String -->
+                <div class="radio radio-nl defaultHidden" id="splitmsg-llstr-parent">
+                    <input type="text" name="splitmsg-llstr" id="splitmsg-llstr" placeholder="_ _">
+                    <label for="splitmsg-llstr">Forced Line Breaks String<sup>3</sup></label>    
+                </div>
+            </div>
+            <!-- Custom Character Limit -->
+            <div id="charlimit-parent" class="defaultHidden">
+                <div class="radio">
+                    <input type="number" name="charlimit" id="charlimit" list="commonCharacterLimits" min="1" placeholder="2000" onkeyup="fixNumUser(this);">
+                    <label for="charlimit">Charater Limit<sup>4</sup></label>    
+                </div>
+                <datalist id="commonCharacterLimits">
+                    <option value="2000">Discord Free</option>
+                    <option value="280">Twitter Free</option>
+                    <option value="4000">Discord Nitro / Twitter Blue</option>
+                </datalist>
             </div>
             <!-- Text Input -->
             <br>
@@ -370,18 +563,26 @@
             <h2>Submit and Other</h2>
             <input type="submit" value="Submit" id="submit-input" style="font-size: 2em;">
             <br><br>
-            <input type="button" onclick="" value="Reset Options to Default, this reloads the webpage" id="reset-input">
+            <input type="button" onclick="resetSettings();" value="Reset Options to Default (Reloads Webpage)" id="reset-input">
+            <small>
+                <br><br>
+                <sup>1 </sup>Modes:<ul>
+                    <li><b>Disabled:</b> No Split Messages</li>
+                    <li><b>Simple:</b> Cuts everything EXACTLY after the character limit. Very Lightweight.</li>
+                    <li><b>Smart (Recommended):</b> Tries to hide that these are multiple messages by cutting after line breaks, forcing new lines or cutting after a word. It's fully customizable. Only breaks when you really try to break it.</li>
+                </ul>
+                <sup>2 </sup>If an empty line is found at the very end of a message, it will force discord to make it appear<br>
+                <sup>3 </sup>The String that gets appended to detected empty lines at end/beginning of messages is "_ _". With this you can change it. This string works because Discord cannot remove the whitespace at the end of message, because there is a "_", and Discord doesn't remove whitespace or empty lines inside messages.
+                The reason for the other "_" is to make sure the other one disappears. It was chosen to use "_ _" over "** **" due to character amount, tho it doesn't matter in most cases.<br>
+                <sup>4 </sup>After how many characters the message must be cut. A few presets are available. Create an issue on GitHub if you have suggestions.
+            </small>
         </form>
         <div id="result">
             <h2>Result</h2>
-            <textarea disabled style="text-align: center;color: #fff; background-color: #200;">There is not Result yet!</textarea>
+            <textarea data-no-result disabled style="text-align: center;color: var(--text); background-color: var(--back-red);">There is not Result yet!</textarea>
         </div>
     </div>
     <br><br>
-    <small>
-        <sup>1</sup><span class="experimental">Experimental</span>, may not do it's job in very very specific edge-cases or if you really try to break it.<br>
-        <sup>2</sup>If an empty line is found at the very end of a message, it will instead append "_ _"
-    </small>
     <script>
         allInputs = document.querySelectorAll("input");
         for (let i = 0; i < allInputs.length; i++) {
@@ -396,7 +597,7 @@
         enterEventSpecial.splitmsg.addEventListener("keypress", function (event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                this.checked = !this.checked
+                this.checked = !this.checked;
             }
         });
         enterEventSpecial.submit.removeEventListener("keypress", ()=>{preventEnter(event)});
