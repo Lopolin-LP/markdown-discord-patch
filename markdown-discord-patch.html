@@ -162,7 +162,7 @@
             }
             try {
                 let whatnr = localStorage.getItem("mddcp-nr");
-                if (whatnr == '') {
+                if (whatnr == null || whatnr == '') {
                     whatnr = 4; /* set the default */
                 }
                 document.getElementById("mark-amount").value = Number(whatnr);
@@ -172,7 +172,7 @@
             }
             try {
                 let whatmsg = localStorage.getItem("mddcp-2k");
-                if (whatmsg === "") {
+                if (whatmsg == null || whatmsg == "") {
                     whatmsg = "disabled";
                 }
                 document.getElementById("splitmsg").value = whatmsg;
@@ -538,7 +538,7 @@
 </head>
 <body>
     <h1>Discord Markdown Patch / Split Messages</h1>
-    <div id="version">v1.0</div>
+    <div id="version">v1.1</div>
     <p>
         A very lightweight tool to fix discords markdown shitty Indention detection. Available for free on
         <a href="https://github.com/Lopolin-LP/markdown-discord-patch" target="_blank">GitHub</a>.
