@@ -14,8 +14,9 @@ There are 3 ways to access this tool:
 
 ## ToDo
 Features I want to add at somepoint. Those are NOT available right now.
-- Click Message Output to copy to clipboard (toggleable)
-- Better Mobile support. (css will be based on landscape/portrait orientation, not actualy size in px)
+- Click Message Output to copy to clipboard **(toggleable)**
+- Determine Lightmode based on Browser Preferences
+- Rewrite saving, removing and setting Settings
 
 ## License
 GPLv3
