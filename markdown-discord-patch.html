@@ -108,6 +108,11 @@
             display: grid;
             grid-template-columns: 50% 50%;
         }
+        @media screen and (max-width: 650px) {
+            #theContainer {
+                grid-template-columns: 100%;
+            }
+        }
         #result textarea {
             width: var(--textarea-size);
             height: 30vh;
@@ -136,7 +141,7 @@
         }
     </style>
     <script>
-        window.onload = function() {
+        window.addEventListener("load", function() {
             const lclsWarn = "option couldn't be loaded. They may not exist within localStorage."
             try {
                 let whatmd = localStorage.getItem("mddcp-md");
@@ -211,7 +216,7 @@
                 console.warn("Light Mode", lclsWarn);
                 console.error(err);
             }
-        }
+        });
         let placeholderStillThere = true;
         function execute(elm) {
             const splitmsg = document.querySelector("#splitmsg").value;
@@ -283,6 +288,7 @@
                     "To GeT tHe ReSuLt, ClIcK tHiS lInK!!!11!: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                 ];
                 let div = document.createElement("div");
+                /* DEBUGGING */ console.log("mockery");
                 div.innerHTML = `<textarea data-no-result disabled style="text-align: center;color: var(--text); background-color: var(--back-red);">${mockingTheUser[Math.floor(Math.random() * mockingTheUser.length)] + " &#128128;"}</textarea>`;
                 document.getElementById("result").appendChild(div.querySelector("textarea"));
             }
@@ -515,7 +521,11 @@
             localStorage.setItem("mddcp-rt", "");
             window.location.reload();
         }
-        window.onbeforeunload = function() {
+        function copy_text(element) { // https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
+            element.select();
+            navigator.clipboard.writeText(element.value);
+        }
+        window.addEventListener("beforeunload", function() {
             if (typeof localStorage.getItem("mddcp-rt") === "string") {
                 /* Reset Settings */
                 console.log("Prevent saving of Settings due to reset!");
@@ -533,12 +543,20 @@
                 /* Remove resetting again */
                 localStorage.removeItem("mddcp-rt");
             } catch {}
-        }
+        });
+        // Hi, this is me two years later. I am crying looking at this old code. Anyways, easier copying and mobile support :)
+        window.addEventListener("load", () => {
+            document.getElementById("result").addEventListener("pointerdown", (e) => {
+                if (e.target.tagName === "TEXTAREA") {
+                    copy_text(e.target);
+                }
+            });
+        });
     </script>
 </head>
 <body>
     <h1>Discord Markdown Patch / Split Messages</h1>
-    <div id="version">v1.1</div>
+    <div id="version">v1.2</div>
     <p>
         A very lightweight tool to fix discords markdown shitty Indention detection. Available for free on
         <a href="https://github.com/Lopolin-LP/markdown-discord-patch" target="_blank">GitHub</a>.
@@ -635,6 +653,7 @@
         </form>
         <div id="result">
             <h2>Result</h2>
+            <p>Click to copy to clipboard.</p>
             <textarea data-no-result disabled style="text-align: center;color: var(--text); background-color: var(--back-red);">There is not Result yet!</textarea>
         </div>
     </div>
